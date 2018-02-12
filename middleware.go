@@ -39,10 +39,11 @@ type RequestCounterURLLabelMappingFn func(c *gin.Context) string
 
 // Prometheus contains the metrics gathered by the instance and its path
 type Prometheus struct {
-	reqCnt               *prometheus.CounterVec
-	reqDur, reqSz, resSz *prometheus.SummaryVec
-	router               *gin.Engine
-	listenAddress        string
+	reqCnt                        *prometheus.CounterVec
+	reqDur, reqSz, resSz          *prometheus.SummaryVec
+	reqDurGbl, reqSzGbl, resSzGbl prometheus.Summary
+	router                        *gin.Engine
+	listenAddress                 string
 
 	Ppg PrometheusPushGateway
 
@@ -180,7 +181,43 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 	)
 
 	if err := prometheus.Register(p.reqCnt); err != nil {
-		log.Printf("reqCnt could not be registered: %s\n", err.Error())
+		log.Printf("requests_total counter  could not be registered: %s\n", err.Error())
+	}
+
+	p.reqDurGbl = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Subsystem: subsystem,
+			Name:      "request_duration_seconds",
+			Help:      "The HTTP request latencies in seconds.",
+		},
+	)
+
+	if err := prometheus.Register(p.reqDurGbl); err != nil {
+		log.Printf("request_duration_seconds global summary could not be registered: %s\n", err.Error())
+	}
+
+	p.reqSzGbl = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Subsystem: subsystem,
+			Name:      "request_size_bytes",
+			Help:      "The HTTP request sizes in bytes.",
+		},
+	)
+
+	if err := prometheus.Register(p.reqSzGbl); err != nil {
+		log.Printf("request_size_bytes global summary could not be registered: %s\n", err.Error())
+	}
+
+	p.resSzGbl = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Subsystem: subsystem,
+			Name:      "response_size_bytes",
+			Help:      "The HTTP response sizes in bytes.",
+		},
+	)
+
+	if err := prometheus.Register(p.resSzGbl); err != nil {
+		log.Printf("response_size_bytes global summary could not be registered: %s\n", err.Error())
 	}
 
 	p.reqDur = prometheus.NewSummaryVec(
@@ -193,7 +230,7 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 	)
 
 	if err := prometheus.Register(p.reqDur); err != nil {
-		log.Printf("reqDur could not be registered: %s\n", err.Error())
+		log.Printf("request_duration_seconds could not be registered: %s\n", err.Error())
 	}
 
 	p.reqSz = prometheus.NewSummaryVec(
@@ -206,7 +243,7 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 	)
 
 	if err := prometheus.Register(p.reqSz); err != nil {
-		log.Printf("reqSz could not be registered: %s\n", err.Error())
+		log.Printf("request_size_bytes could not be registered: %s\n", err.Error())
 	}
 
 	p.resSz = prometheus.NewSummaryVec(
@@ -219,7 +256,7 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 	)
 
 	if err := prometheus.Register(p.resSz); err != nil {
-		log.Printf("resSz could not be registered: %s\n", err.Error())
+		log.Printf("response_size_bytes could not be registered: %s\n", err.Error())
 	}
 
 }
@@ -253,9 +290,12 @@ func (p *Prometheus) handlerFunc() gin.HandlerFunc {
 		resSz := float64(c.Writer.Size())
 
 		url := p.ReqCntURLLabelMappingFn(c)
+		p.reqDurGbl.Observe(elapsed)
 		p.reqDur.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(elapsed)
 		p.reqCnt.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Inc()
+		p.reqSzGbl.Observe(float64(reqSz))
 		p.reqSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(float64(reqSz))
+		p.resSzGbl.Observe(resSz)
 		p.resSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(resSz)
 	}
 }
