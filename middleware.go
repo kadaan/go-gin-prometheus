@@ -39,11 +39,10 @@ type RequestCounterURLLabelMappingFn func(c *gin.Context) string
 
 // Prometheus contains the metrics gathered by the instance and its path
 type Prometheus struct {
-	reqCnt                        *prometheus.CounterVec
-	reqDur, reqSz, resSz          *prometheus.SummaryVec
-	reqDurGbl, reqSzGbl, resSzGbl prometheus.Summary
-	router                        *gin.Engine
-	listenAddress                 string
+	reqCnt               *prometheus.CounterVec
+	reqDur, reqSz, resSz *prometheus.HistogramVec
+	router               *gin.Engine
+	listenAddress        string
 
 	Ppg PrometheusPushGateway
 
@@ -71,7 +70,7 @@ type PrometheusPushGateway struct {
 }
 
 // NewPrometheus generates a new set of metrics with a certain subsystem name
-func NewPrometheus(subsystem string) *Prometheus {
+func NewPrometheus(subsystem string, requestDurationBuckets []float64, requestSizeBuckets []float64, responseSizeBuckets) *Prometheus {
 
 	p := &Prometheus{
 		MetricsPath: defaultMetricPath,
@@ -79,7 +78,7 @@ func NewPrometheus(subsystem string) *Prometheus {
 			return c.Request.URL.String() // i.e. by default do nothing, i.e. return URL as is
 		},
 	}
-	p.registerMetrics(subsystem)
+	p.registerMetrics(subsystem, requestDurationBuckets, requestSizeBuckets, responseSizeBuckets)
 
 	return p
 }
@@ -169,7 +168,7 @@ func (p *Prometheus) startPushTicker() {
 	}()
 }
 
-func (p *Prometheus) registerMetrics(subsystem string) {
+func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []float64, requestSizeBuckets []float64, responseSizeBuckets []float64) {
 
 	p.reqCnt = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -184,47 +183,12 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 		log.Printf("requests_total counter  could not be registered: %s\n", err.Error())
 	}
 
-	p.reqDurGbl = prometheus.NewSummary(
-		prometheus.SummaryOpts{
+	p.reqDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
 			Subsystem: subsystem,
 			Name:      "request_duration_seconds",
 			Help:      "The HTTP request latencies in seconds.",
-		},
-	)
-
-	if err := prometheus.Register(p.reqDurGbl); err != nil {
-		log.Printf("request_duration_seconds global summary could not be registered: %s\n", err.Error())
-	}
-
-	p.reqSzGbl = prometheus.NewSummary(
-		prometheus.SummaryOpts{
-			Subsystem: subsystem,
-			Name:      "request_size_bytes",
-			Help:      "The HTTP request sizes in bytes.",
-		},
-	)
-
-	if err := prometheus.Register(p.reqSzGbl); err != nil {
-		log.Printf("request_size_bytes global summary could not be registered: %s\n", err.Error())
-	}
-
-	p.resSzGbl = prometheus.NewSummary(
-		prometheus.SummaryOpts{
-			Subsystem: subsystem,
-			Name:      "response_size_bytes",
-			Help:      "The HTTP response sizes in bytes.",
-		},
-	)
-
-	if err := prometheus.Register(p.resSzGbl); err != nil {
-		log.Printf("response_size_bytes global summary could not be registered: %s\n", err.Error())
-	}
-
-	p.reqDur = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Subsystem: subsystem,
-			Name:      "request_duration_seconds",
-			Help:      "The HTTP request latencies in seconds.",
+			Buckets:   requestDurationBuckets,
 		},
 		[]string{"code", "method", "host", "url"},
 	)
@@ -233,11 +197,12 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 		log.Printf("request_duration_seconds could not be registered: %s\n", err.Error())
 	}
 
-	p.reqSz = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
+	p.reqSz = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
 			Subsystem: subsystem,
 			Name:      "request_size_bytes",
 			Help:      "The HTTP request sizes in bytes.",
+			Buckets:   requestSizeBuckets,
 		},
 		[]string{"code", "method", "host", "url"},
 	)
@@ -246,11 +211,12 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 		log.Printf("request_size_bytes could not be registered: %s\n", err.Error())
 	}
 
-	p.resSz = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
+	p.resSz = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
 			Subsystem: subsystem,
 			Name:      "response_size_bytes",
 			Help:      "The HTTP response sizes in bytes.",
+			Buckets:   responseSizeBuckets
 		},
 		[]string{"code", "method", "host", "url"},
 	)
