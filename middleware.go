@@ -70,7 +70,7 @@ type PrometheusPushGateway struct {
 }
 
 // NewPrometheus generates a new set of metrics with a certain subsystem name
-func NewPrometheus(subsystem string, requestDurationBuckets []float64, requestSizeBuckets []float64, responseSizeBuckets) *Prometheus {
+func NewPrometheus(subsystem string, requestDurationBuckets []float64, requestSizeBuckets []float64, responseSizeBuckets []float64) *Prometheus {
 
 	p := &Prometheus{
 		MetricsPath: defaultMetricPath,
@@ -216,7 +216,7 @@ func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []
 			Subsystem: subsystem,
 			Name:      "response_size_bytes",
 			Help:      "The HTTP response sizes in bytes.",
-			Buckets:   responseSizeBuckets
+			Buckets:   responseSizeBuckets,
 		},
 		[]string{"code", "method", "host", "url"},
 	)
@@ -256,12 +256,9 @@ func (p *Prometheus) handlerFunc() gin.HandlerFunc {
 		resSz := float64(c.Writer.Size())
 
 		url := p.ReqCntURLLabelMappingFn(c)
-		p.reqDurGbl.Observe(elapsed)
 		p.reqDur.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(elapsed)
 		p.reqCnt.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Inc()
-		p.reqSzGbl.Observe(float64(reqSz))
 		p.reqSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(float64(reqSz))
-		p.resSzGbl.Observe(resSz)
 		p.resSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(resSz)
 	}
 }
