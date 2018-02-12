@@ -176,7 +176,7 @@ func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []
 			Name:      "requests_total",
 			Help:      "How many HTTP requests processed, partitioned by status code and HTTP method.",
 		},
-		[]string{"code", "method", "host", "url"},
+		[]string{"code", "method", "url"},
 	)
 
 	if err := prometheus.Register(p.reqCnt); err != nil {
@@ -190,7 +190,7 @@ func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []
 			Help:      "The HTTP request latencies in seconds.",
 			Buckets:   requestDurationBuckets,
 		},
-		[]string{"code", "method", "host", "url"},
+		[]string{"code", "method", "url"},
 	)
 
 	if err := prometheus.Register(p.reqDur); err != nil {
@@ -204,7 +204,7 @@ func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []
 			Help:      "The HTTP request sizes in bytes.",
 			Buckets:   requestSizeBuckets,
 		},
-		[]string{"code", "method", "host", "url"},
+		[]string{"code", "method", "url"},
 	)
 
 	if err := prometheus.Register(p.reqSz); err != nil {
@@ -218,7 +218,7 @@ func (p *Prometheus) registerMetrics(subsystem string, requestDurationBuckets []
 			Help:      "The HTTP response sizes in bytes.",
 			Buckets:   responseSizeBuckets,
 		},
-		[]string{"code", "method", "host", "url"},
+		[]string{"code", "method", "url"},
 	)
 
 	if err := prometheus.Register(p.resSz); err != nil {
@@ -256,10 +256,10 @@ func (p *Prometheus) handlerFunc() gin.HandlerFunc {
 		resSz := float64(c.Writer.Size())
 
 		url := p.ReqCntURLLabelMappingFn(c)
-		p.reqDur.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(elapsed)
-		p.reqCnt.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Inc()
-		p.reqSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(float64(reqSz))
-		p.resSz.WithLabelValues(status, c.Request.Method, c.Request.Host, url).Observe(resSz)
+		p.reqDur.WithLabelValues(status, c.Request.Method, url).Observe(elapsed)
+		p.reqCnt.WithLabelValues(status, c.Request.Method, url).Inc()
+		p.reqSz.WithLabelValues(status, c.Request.Method, url).Observe(float64(reqSz))
+		p.resSz.WithLabelValues(status, c.Request.Method, url).Observe(resSz)
 	}
 }
 
