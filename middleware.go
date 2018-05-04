@@ -57,6 +57,7 @@ func NewBuilder() *Prometheus {
 
 type PrometheusMiddlerwareBuilder interface {
 	Auth(accounts gin.Accounts) PrometheusMiddlerwareBuilder
+	UrlMapping(function URLLabelMappingFn) PrometheusMiddlerwareBuilder
 	Counter(counter *prometheus.CounterVec) PrometheusMiddlerwareBuilder
 	Duration(observer prometheus.ObserverVec) PrometheusMiddlerwareBuilder
 	RequestSize(observer prometheus.ObserverVec) PrometheusMiddlerwareBuilder
@@ -67,6 +68,11 @@ type PrometheusMiddlerwareBuilder interface {
 
 func (p *Prometheus) Auth(accounts gin.Accounts) PrometheusMiddlerwareBuilder {
 	p.accounts = accounts
+	return p
+}
+
+func (p *Prometheus) UrlMapping(function URLLabelMappingFn) PrometheusMiddlerwareBuilder {
+	p.urlLabelMappingFn = function
 	return p
 }
 
