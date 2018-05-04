@@ -49,6 +49,8 @@ func main() {
 		[]string{"code", "method", "url"},
 	)
 
+	prometheus.MustRegister(counter, duration, requestSize, responseSize)
+
 	ginprometheus.NewBuilder().Counter(counter).Duration(duration).RequestSize(requestSize).ResponseSize(responseSize).Use(r)
 
 	r.GET("/", func(c *gin.Context) {
