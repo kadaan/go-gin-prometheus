@@ -268,11 +268,11 @@ func (p *Prometheus) handlerFunc() gin.HandlerFunc {
 		c.Next()
 
 		info := metricInfo{
-			method: sanitizeMethod(c.Request.Method),
-			code: sanitizeCode(c.Writer.Status()),
-			url: p.urlLabelMappingFn(c),
-			duration: float64(time.Since(start)) / float64(time.Second),
-			requestSize: float64(reqSz),
+			method:       sanitizeMethod(c.Request.Method),
+			code:         sanitizeCode(c.Writer.Status()),
+			url:          p.urlLabelMappingFn(c),
+			duration:     float64(time.Since(start)) / float64(time.Second),
+			requestSize:  float64(reqSz),
 			responseSize: float64(c.Writer.Size()),
 		}
 		if p.reqCnt != nil {
@@ -324,7 +324,7 @@ func computeApproximateRequestSize(r *http.Request) int {
 
 var emptyLabels = prometheus.Labels{}
 
-func labels(codeExists, methodExists, urlExists bool, method, code, url string) prometheus.Labels {
+func labels(codeExists, methodExists, urlExists bool, code, method, url string) prometheus.Labels {
 	if !(codeExists || methodExists || urlExists) {
 		return emptyLabels
 	}
